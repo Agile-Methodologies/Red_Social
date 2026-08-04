@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Red Social</title>
+  <link rel="stylesheet" href="./src/css/index.css">
+</head>
+<body>
+  <main class="contenedor">
+    <section class="panel">
+      <h1>Publicación</h1>
+      <form id="formulario" novalidate>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" required placeholder="Tu nombre">
+
+        <label for="message">Mensaje:</label>
+        <input type="text" id="message" name="message" required placeholder="Escribe tu mensaje">
+
+        <button type="submit">Publicar</button>
+      </form>
+    </section>
+
+    <section class="panel publicaciones-panel">
+      <h2>Publicaciones</h2>
+      <div id="listaPublicaciones" class="lista-publicaciones"></div>
+    </section>
+  </main>
+
+  <script src="./src/js/localstorage.js"></script>
+</body>
+</html>
