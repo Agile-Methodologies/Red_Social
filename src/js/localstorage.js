@@ -1,21 +1,32 @@
 const form = document.getElementById('formulario');
+
 const nombreInput = document.getElementById('nombre');
+
 const mensajeInput = document.getElementById('message');
+
 const listaPublicaciones = document.getElementById('listaPublicaciones');
+
 const resumenPublicacionesEl = document.getElementById('resumenPublicaciones');
+
 const resumenLikesEl = document.getElementById('resumenLikes');
+
 const resumenComentariosEl = document.getElementById('resumenComentarios');
+
+const contadorCaracteresEl = document.getElementById('contadorCaracteres');
+
+const MAX_CARACTERES_MENSAJE = 200;
+
 
 // Guarda el id de la publicación que está actualmente en modo edición.
 // Al ser null, ninguna publicación se muestra en modo edición.
 let editandoId = null;
+
 let terminoBusqueda = '';
 
-// Criterio de orden actualmente seleccionado. Solo vive en memoria:
-// no se persiste, así que al recargar la página siempre vuelve a
-// 'recientes' (el valor inicial del <select>), pero las publicaciones
-// en sí no se pierden ni se reordenan en el almacenamiento.
+
+// Criterio de orden actualmente seleccionado. Solo vive en memoria.
 let ordenSeleccionado = 'recientes';
+
 
 function generarIdPublicacion() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -25,6 +36,7 @@ function generarIdPublicacion() {
   return `pub-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+
 function generarIdComentario() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -32,6 +44,7 @@ function generarIdComentario() {
 
   return `com-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+
 
 function normalizarComentarios(comentarios) {
   return (Array.isArray(comentarios) ? comentarios : []).map((comentario) => ({
@@ -43,16 +56,20 @@ function normalizarComentarios(comentarios) {
   }));
 }
 
+
 function normalizarPublicaciones(publicaciones) {
   return (Array.isArray(publicaciones) ? publicaciones : []).map((publicacion) => ({
     ...publicacion,
     id: publicacion.id || generarIdPublicacion(),
     likes: Number(publicacion.likes) || 0,
     dislikes: Number(publicacion.dislikes) || 0,
-    respuestas: Array.isArray(publicacion.respuestas) ? publicacion.respuestas : [],
+    respuestas: Array.isArray(publicacion.respuestas)
+      ? publicacion.respuestas
+      : [],
     comentarios: normalizarComentarios(publicacion.comentarios)
   }));
 }
+
 
 function obtenerPublicaciones() {
   const datos = localStorage.getItem('publicaciones');
@@ -65,9 +82,10 @@ function obtenerPublicaciones() {
     const publicaciones = JSON.parse(datos);
     const publicacionesNormalizadas = normalizarPublicaciones(publicaciones);
 
-    // Solo reescribimos en localStorage si la normalización cambió algo
-    // (por ejemplo, si faltaba un id o algún campo tenía un tipo incorrecto).
-    const huboCambios = JSON.stringify(publicaciones) !== JSON.stringify(publicacionesNormalizadas);
+    const huboCambios =
+      JSON.stringify(publicaciones) !==
+      JSON.stringify(publicacionesNormalizadas);
+
     if (huboCambios) {
       guardarPublicaciones(publicacionesNormalizadas);
     }
@@ -79,9 +97,14 @@ function obtenerPublicaciones() {
   }
 }
 
+
 function guardarPublicaciones(publicaciones) {
-  localStorage.setItem('publicaciones', JSON.stringify(normalizarPublicaciones(publicaciones)));
+  localStorage.setItem(
+    'publicaciones',
+    JSON.stringify(normalizarPublicaciones(publicaciones))
+  );
 }
+
 
 function escaparTexto(texto) {
   return String(texto)
@@ -91,6 +114,7 @@ function escaparTexto(texto) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
 
 function formatearFecha(fecha) {
   if (!fecha) {
@@ -111,6 +135,7 @@ function formatearFecha(fecha) {
   }).format(fechaPublicacion);
 }
 
+
 function filtrarPublicaciones(publicaciones, termino) {
   const textoBusqueda = termino.trim().toLowerCase();
 
@@ -122,52 +147,101 @@ function filtrarPublicaciones(publicaciones, termino) {
     const autor = String(publicacion.usuario || '').toLowerCase();
     const contenido = String(publicacion.contenido || '').toLowerCase();
 
-    return autor.includes(textoBusqueda) || contenido.includes(textoBusqueda);
+    return (
+      autor.includes(textoBusqueda) ||
+      contenido.includes(textoBusqueda)
+    );
   });
 }
 
+
 // --- H9: Ordenar publicaciones ---
-//
-// IMPORTANTE: nunca se ordena el arreglo original con .sort(), porque
-// .sort() muta el arreglo en el que se llama. Acá siempre se arma una
-// copia con [...publicaciones] y se ordena esa copia, dejando intacto
-// tanto el arreglo que viene de obtenerPublicaciones() como lo que
-// hay guardado en localStorage.
+
 function ordenarPublicaciones(publicaciones, criterio) {
   const copia = [...publicaciones];
 
   switch (criterio) {
     case 'antiguas':
-      return copia.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      return copia.sort(
+        (a, b) => new Date(a.fecha) - new Date(b.fecha)
+      );
 
     case 'populares':
       return copia.sort((a, b) => {
-        const diferenciaLikes = (Number(b.likes) || 0) - (Number(a.likes) || 0);
-        if (diferenciaLikes !== 0) return diferenciaLikes;
-        // Empate en likes: desempata mostrando primero la más reciente.
+        const diferenciaLikes =
+          (Number(b.likes) || 0) -
+          (Number(a.likes) || 0);
+
+        if (diferenciaLikes !== 0) {
+          return diferenciaLikes;
+        }
+
         return new Date(b.fecha) - new Date(a.fecha);
       });
 
     case 'recientes':
     default:
-      return copia.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      return copia.sort(
+        (a, b) => new Date(b.fecha) - new Date(a.fecha)
+      );
   }
 }
 
+
+// --- H11: Contador de caracteres ---
+
+function actualizarContadorCaracteres() {
+  if (!mensajeInput || !contadorCaracteresEl) {
+    return;
+  }
+
+  const caracteresUsados = mensajeInput.value.length;
+
+  const caracteresRestantes =
+    MAX_CARACTERES_MENSAJE - caracteresUsados;
+
+  contadorCaracteresEl.textContent =
+    `${caracteresRestantes} ${
+      caracteresRestantes === 1
+        ? 'carácter'
+        : 'caracteres'
+    } restantes`;
+
+  contadorCaracteresEl.classList.toggle(
+    'limite-alcanzado',
+    caracteresRestantes === 0
+  );
+}
+
+
+// --- Renderizado ---
+
 function renderizarPublicaciones() {
   const publicaciones = obtenerPublicaciones();
+
   renderizarResumen(publicaciones);
-  const publicacionesFiltradas = filtrarPublicaciones(publicaciones, terminoBusqueda);
-  const publicacionesMostradas = ordenarPublicaciones(publicacionesFiltradas, ordenSeleccionado);
- 
+
+  const publicacionesFiltradas =
+    filtrarPublicaciones(
+      publicaciones,
+      terminoBusqueda
+    );
+
+  const publicacionesMostradas =
+    ordenarPublicaciones(
+      publicacionesFiltradas,
+      ordenSeleccionado
+    );
 
   if (!publicaciones.length) {
-    listaPublicaciones.innerHTML = '<p class="vacio">Aún no hay publicaciones.</p>';
+    listaPublicaciones.innerHTML =
+      '<p class="vacio">Aún no hay publicaciones.</p>';
     return;
   }
 
   if (!publicacionesMostradas.length) {
-    listaPublicaciones.innerHTML = '<p class="vacio">No se encontraron publicaciones que coincidan con la búsqueda.</p>';
+    listaPublicaciones.innerHTML =
+      '<p class="vacio">No se encontraron publicaciones que coincidan con la búsqueda.</p>';
     return;
   }
 
@@ -175,377 +249,828 @@ function renderizarPublicaciones() {
 
   publicacionesMostradas.forEach((publicacion) => {
     const articulo = document.createElement('article');
+
     articulo.className = 'publicacion';
 
-    const enEdicion = publicacion.id === editandoId;
+    const enEdicion =
+      publicacion.id === editandoId;
 
-    // Bloque de contenido: o el texto normal, o el formulario de edición
+    const contenidoActual =
+      String(publicacion.contenido || '');
+
+    const caracteresRestantesEdicion =
+      Math.max(
+        0,
+        MAX_CARACTERES_MENSAJE -
+          contenidoActual.length
+      );
+
     const bloqueContenido = enEdicion
       ? `
         <div class="edicion-contenedor">
-          <textarea class="input-editar" data-id="${publicacion.id}" rows="3">${escaparTexto(publicacion.contenido)}</textarea>
-          <p class="error-edicion" id="error-editar-${publicacion.id}"></p>
-          <button class="btn-guardar-edicion" data-id="${publicacion.id}" type="button">Guardar</button>
-          <button class="btn-cancelar-edicion" data-id="${publicacion.id}" type="button">Cancelar</button>
+
+          <textarea
+            class="input-editar"
+            data-id="${publicacion.id}"
+            rows="3"
+            maxlength="${MAX_CARACTERES_MENSAJE}"
+          >${escaparTexto(contenidoActual)}</textarea>
+
+          <p
+            class="contador-edicion ${
+              caracteresRestantesEdicion === 0
+                ? 'limite-alcanzado'
+                : ''
+            }"
+            data-id="${publicacion.id}"
+          >
+            ${caracteresRestantesEdicion}
+            ${
+              caracteresRestantesEdicion === 1
+                ? 'carácter'
+                : 'caracteres'
+            }
+            restantes
+          </p>
+
+          <p
+            class="error-edicion"
+            id="error-editar-${publicacion.id}"
+          ></p>
+
+          <div class="botones-edicion">
+            <button
+              class="btn-guardar-edicion"
+              data-id="${publicacion.id}"
+              type="button"
+            >
+              Guardar
+            </button>
+
+            <button
+              class="btn-cancelar-edicion"
+              data-id="${publicacion.id}"
+              type="button"
+            >
+              Cancelar
+            </button>
+          </div>
+
         </div>
       `
-      : `<p>${escaparTexto(publicacion.contenido)}</p>`;
+      : `<p>${escaparTexto(contenidoActual)}</p>`;
 
-    const comentarios = Array.isArray(publicacion.comentarios) ? publicacion.comentarios : [];
+    const comentarios =
+      Array.isArray(publicacion.comentarios)
+        ? publicacion.comentarios
+        : [];
 
     articulo.innerHTML = `
       <div class="publicacion-header">
-        <strong>${escaparTexto(publicacion.usuario)}</strong>
-        <span>${formatearFecha(publicacion.fecha)}</span>
+        <strong>
+          ${escaparTexto(publicacion.usuario)}
+        </strong>
+
+        <span>
+          ${formatearFecha(publicacion.fecha)}
+        </span>
       </div>
+
       ${bloqueContenido}
+
       <div class="acciones-publicacion">
+
         <div class="acciones-reaccion">
-          <button class="btn-like" data-id="${publicacion.id}" type="button">
-            Me gusta <span class="contador">${Number(publicacion.likes || 0)}</span>
+
+          <button
+            class="btn-like"
+            data-id="${publicacion.id}"
+            type="button"
+          >
+            Me gusta
+            <span class="contador">
+              ${Number(publicacion.likes || 0)}
+            </span>
           </button>
-          <button class="btn-dislike" data-id="${publicacion.id}" type="button">
-            No me gusta <span class="contador">${Number(publicacion.dislikes || 0)}</span>
+
+          <button
+            class="btn-dislike"
+            data-id="${publicacion.id}"
+            type="button"
+          >
+            No me gusta
+            <span class="contador">
+              ${Number(publicacion.dislikes || 0)}
+            </span>
           </button>
+
         </div>
+
         <div class="acciones-gestion">
-          <button class="btn-editar" data-id="${publicacion.id}" type="button" ${enEdicion ? 'disabled' : ''}>
+
+          <button
+            class="btn-editar"
+            data-id="${publicacion.id}"
+            type="button"
+            ${enEdicion ? 'disabled' : ''}
+          >
             Editar
           </button>
-          <button class="btn-eliminar" data-id="${publicacion.id}" type="button">
+
+          <button
+            class="btn-eliminar"
+            data-id="${publicacion.id}"
+            type="button"
+          >
             Eliminar
           </button>
+
         </div>
+
       </div>
 
-        <div class="lista-respuestas">
-          ${
-            (publicacion.respuestas || [])
-              .map((respuesta) => `<p>💬 ${escaparTexto(respuesta)}</p>`)
-              .join('')
-          }
-        </div>
+      <div class="lista-respuestas">
+        ${
+          (publicacion.respuestas || [])
+            .map(
+              (respuesta) =>
+                `<p>💬 ${escaparTexto(respuesta)}</p>`
+            )
+            .join('')
+        }
       </div>
 
-      <div class="comentarios-contenedor" id="comentarios-${publicacion.id}">
-        <h3 class="comentarios-titulo">Comentarios (${comentarios.length})</h3>
+      <div
+        class="comentarios-contenedor"
+        id="comentarios-${publicacion.id}"
+      >
+
+        <h3 class="comentarios-titulo">
+          Comentarios (${comentarios.length})
+        </h3>
 
         <div class="comentario-form">
+
           <input
             type="text"
             class="input-comentario-nombre"
             placeholder="Tu nombre"
           >
+
           <input
             type="text"
             class="input-comentario-texto"
             placeholder="Escribe un comentario..."
           >
-          <p class="error-comentario" id="error-comentario-${publicacion.id}"></p>
-          <button class="btn-enviar-comentario" data-id="${publicacion.id}" type="button">
+
+          <p
+            class="error-comentario"
+            id="error-comentario-${publicacion.id}"
+          ></p>
+
+          <button
+            class="btn-enviar-comentario"
+            data-id="${publicacion.id}"
+            type="button"
+          >
             Comentar
           </button>
+
         </div>
 
         <div class="lista-comentarios">
+
           ${
             comentarios
-              .map((comentario) => `
-                <div class="comentario">
-                  <div class="comentario-header">
-                    <strong>${escaparTexto(comentario.autor)}</strong>
-                    <span>${formatearFecha(comentario.fecha)}</span>
+              .map(
+                (comentario) => `
+                  <div class="comentario">
+
+                    <div class="comentario-header">
+                      <strong>
+                        ${escaparTexto(comentario.autor)}
+                      </strong>
+
+                      <span>
+                        ${formatearFecha(comentario.fecha)}
+                      </span>
+                    </div>
+
+                    <p>
+                      ${escaparTexto(comentario.texto)}
+                    </p>
+
                   </div>
-                  <p>${escaparTexto(comentario.texto)}</p>
-                </div>
-              `)
+                `
+              )
               .join('')
           }
+
         </div>
+
       </div>
     `;
 
     listaPublicaciones.appendChild(articulo);
   });
 
-  // Si hay una publicación en edición, enfocamos su textarea y
-  // dejamos el cursor al final del texto.
+
+  // Si hay una publicación en edición,
+  // enfocamos su textarea.
   if (editandoId) {
-    const textarea = document.querySelector(`.input-editar[data-id="${editandoId}"]`);
+    const textarea = document.querySelector(
+      `.input-editar[data-id="${editandoId}"]`
+    );
+
     if (textarea) {
       textarea.focus();
-      textarea.selectionStart = textarea.value.length;
-      textarea.selectionEnd = textarea.value.length;
+
+      textarea.selectionStart =
+        textarea.value.length;
+
+      textarea.selectionEnd =
+        textarea.value.length;
     }
   }
 }
 
+
+// --- H10: Resumen ---
+
 function calcularResumen(publicaciones) {
-  const totalPublicaciones = publicaciones.length;
+  const totalPublicaciones =
+    publicaciones.length;
 
   const totalLikes = publicaciones.reduce(
-    (total, publicacion) => total + (Number(publicacion.likes) || 0),
+    (total, publicacion) =>
+      total +
+      (Number(publicacion.likes) || 0),
     0
   );
 
-  const totalComentarios = publicaciones.reduce((total, publicacion) => {
-    const comentarios = Array.isArray(publicacion.comentarios) ? publicacion.comentarios : [];
-    return total + comentarios.length;
-  }, 0);
+  const totalComentarios =
+    publicaciones.reduce(
+      (total, publicacion) => {
+        const comentarios =
+          Array.isArray(publicacion.comentarios)
+            ? publicacion.comentarios
+            : [];
 
-  return { totalPublicaciones, totalLikes, totalComentarios };
+        return total + comentarios.length;
+      },
+      0
+    );
+
+  return {
+    totalPublicaciones,
+    totalLikes,
+    totalComentarios
+  };
 }
+
 
 function renderizarResumen(publicaciones) {
-  if (!resumenPublicacionesEl || !resumenLikesEl || !resumenComentariosEl) {
+  if (
+    !resumenPublicacionesEl ||
+    !resumenLikesEl ||
+    !resumenComentariosEl
+  ) {
     return;
   }
 
-  const { totalPublicaciones, totalLikes, totalComentarios } = calcularResumen(publicaciones);
+  const {
+    totalPublicaciones,
+    totalLikes,
+    totalComentarios
+  } = calcularResumen(publicaciones);
 
-  resumenPublicacionesEl.textContent = totalPublicaciones;
-  resumenLikesEl.textContent = totalLikes;
-  resumenComentariosEl.textContent = totalComentarios;
+  resumenPublicacionesEl.textContent =
+    totalPublicaciones;
+
+  resumenLikesEl.textContent =
+    totalLikes;
+
+  resumenComentariosEl.textContent =
+    totalComentarios;
 }
+
+
+// --- Likes ---
 
 function agregarEventosLike() {
-  document.querySelectorAll('.btn-like').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      const id = boton.dataset.id;
-      const publicaciones = obtenerPublicaciones();
-      const publicacion = publicaciones.find((item) => item.id === id);
+  document
+    .querySelectorAll('.btn-like')
+    .forEach((boton) => {
 
-      if (!publicacion) {
-        return;
-      }
+      boton.addEventListener('click', () => {
 
-      publicacion.likes = (Number(publicacion.likes) || 0) + 1;
-      guardarPublicaciones(publicaciones);
-      renderizarPublicaciones();
-      agregarTodosLosEventos();
+        const id = boton.dataset.id;
+
+        const publicaciones =
+          obtenerPublicaciones();
+
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === id
+          );
+
+        if (!publicacion) {
+          return;
+        }
+
+        publicacion.likes =
+          (Number(publicacion.likes) || 0) + 1;
+
+        guardarPublicaciones(publicaciones);
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 }
+
+
+// --- Dislikes ---
 
 function agregarEventosDislike() {
-  document.querySelectorAll('.btn-dislike').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      const id = boton.dataset.id;
-      const publicaciones = obtenerPublicaciones();
-      const publicacion = publicaciones.find((item) => item.id === id);
+  document
+    .querySelectorAll('.btn-dislike')
+    .forEach((boton) => {
 
-      if (!publicacion) return;
+      boton.addEventListener('click', () => {
 
-      publicacion.dislikes = (Number(publicacion.dislikes) || 0) + 1;
+        const id = boton.dataset.id;
 
-      guardarPublicaciones(publicaciones);
-      renderizarPublicaciones();
-      agregarTodosLosEventos();
+        const publicaciones =
+          obtenerPublicaciones();
+
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === id
+          );
+
+        if (!publicacion) {
+          return;
+        }
+
+        publicacion.dislikes =
+          (Number(publicacion.dislikes) || 0) + 1;
+
+        guardarPublicaciones(publicaciones);
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 }
+
+
+// --- Respuestas ---
 
 function agregarEventosResponder() {
-  document.querySelectorAll('.btn-enviar-respuesta').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      const id = boton.dataset.id;
-      const publicaciones = obtenerPublicaciones();
-      const publicacion = publicaciones.find((item) => item.id === id);
 
-      if (!publicacion) return;
+  document
+    .querySelectorAll('.btn-enviar-respuesta')
+    .forEach((boton) => {
 
-      const caja = document.querySelector(`#respuesta-${id} .input-respuesta`);
-      const texto = caja?.value.trim();
+      boton.addEventListener('click', () => {
 
-      if (!texto) return;
+        const id = boton.dataset.id;
 
-      if (!publicacion.respuestas) {
-        publicacion.respuestas = [];
-      }
+        const publicaciones =
+          obtenerPublicaciones();
 
-      publicacion.respuestas.push(texto);
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === id
+          );
 
-      guardarPublicaciones(publicaciones);
+        if (!publicacion) {
+          return;
+        }
 
-      renderizarPublicaciones();
+        const caja = document.querySelector(
+          `#respuesta-${id} .input-respuesta`
+        );
 
-      agregarTodosLosEventos();
+        const texto =
+          caja?.value.trim();
+
+        if (!texto) {
+          return;
+        }
+
+        if (!publicacion.respuestas) {
+          publicacion.respuestas = [];
+        }
+
+        publicacion.respuestas.push(texto);
+
+        guardarPublicaciones(publicaciones);
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 
-  // Permite enviar la respuesta con la tecla Enter
-  document.querySelectorAll('.input-respuesta').forEach((input) => {
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const contenedor = input.closest('.respuesta-contenedor');
-        const botonEnviar = contenedor.querySelector('.btn-enviar-respuesta');
-        botonEnviar.click();
-      }
+
+  document
+    .querySelectorAll('.input-respuesta')
+    .forEach((input) => {
+
+      input.addEventListener(
+        'keydown',
+        (event) => {
+
+          if (event.key === 'Enter') {
+
+            event.preventDefault();
+
+            const contenedor =
+              input.closest(
+                '.respuesta-contenedor'
+              );
+
+            const botonEnviar =
+              contenedor.querySelector(
+                '.btn-enviar-respuesta'
+              );
+
+            botonEnviar.click();
+          }
+        }
+      );
     });
-  });
 }
+
+
+// --- Eliminar ---
 
 function agregarEventosEliminar() {
-  document.querySelectorAll('.btn-eliminar').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      const id = boton.dataset.id;
-      const publicaciones = obtenerPublicaciones();
-      const publicacion = publicaciones.find((item) => item.id === id);
 
-      if (!publicacion) return;
+  document
+    .querySelectorAll('.btn-eliminar')
+    .forEach((boton) => {
 
-      const confirmar = window.confirm(`¿Deseas eliminar esta publicación de ${publicacion.usuario}?`);
+      boton.addEventListener('click', () => {
 
-      if (!confirmar) return;
+        const id = boton.dataset.id;
 
-      const publicacionesActualizadas = publicaciones.filter((item) => item.id !== id);
-      guardarPublicaciones(publicacionesActualizadas);
+        const publicaciones =
+          obtenerPublicaciones();
 
-      // Si estábamos editando justo la publicación eliminada, salimos del modo edición.
-      if (editandoId === id) {
-        editandoId = null;
-      }
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === id
+          );
 
-      renderizarPublicaciones();
-      agregarTodosLosEventos();
+        if (!publicacion) {
+          return;
+        }
+
+        const confirmar = window.confirm(
+          `¿Deseas eliminar esta publicación de ${publicacion.usuario}?`
+        );
+
+        if (!confirmar) {
+          return;
+        }
+
+        const publicacionesActualizadas =
+          publicaciones.filter(
+            (item) => item.id !== id
+          );
+
+        guardarPublicaciones(
+          publicacionesActualizadas
+        );
+
+        if (editandoId === id) {
+          editandoId = null;
+        }
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 }
 
-// --- H6: Editar una publicación ---
+
+// --- H6: Editar ---
 
 function agregarEventosEditar() {
-  document.querySelectorAll('.btn-editar').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      const id = boton.dataset.id;
 
-      // Entra en modo edición para esta publicación (y solo esta).
-      editandoId = id;
+  document
+    .querySelectorAll('.btn-editar')
+    .forEach((boton) => {
 
-      renderizarPublicaciones();
-      agregarTodosLosEventos();
+      boton.addEventListener('click', () => {
+
+        const id = boton.dataset.id;
+
+        editandoId = id;
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 }
+
+
+// --- Cancelar edición ---
 
 function agregarEventosCancelarEdicion() {
-  document.querySelectorAll('.btn-cancelar-edicion').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      editandoId = null;
-      renderizarPublicaciones();
-      agregarTodosLosEventos();
+
+  document
+    .querySelectorAll('.btn-cancelar-edicion')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+
+        editandoId = null;
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
     });
-  });
 }
+
+
+// --- Guardar edición ---
 
 function agregarEventosGuardarEdicion() {
-  document.querySelectorAll('.btn-guardar-edicion').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      guardarEdicion(boton.dataset.id);
+
+  document
+    .querySelectorAll('.btn-guardar-edicion')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+        guardarEdicion(boton.dataset.id);
+      });
     });
-  });
 
-  // Ctrl+Enter para guardar, Escape para cancelar, sin salir del textarea.
-  document.querySelectorAll('.input-editar').forEach((textarea) => {
-    textarea.addEventListener('keydown', (event) => {
-      const id = textarea.dataset.id;
 
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        guardarEdicion(id);
-      }
+  document
+    .querySelectorAll('.input-editar')
+    .forEach((textarea) => {
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        editandoId = null;
-        renderizarPublicaciones();
-        agregarTodosLosEventos();
-      }
+      textarea.addEventListener(
+        'input',
+        () => {
+
+          const contador =
+            document.querySelector(
+              `.contador-edicion[data-id="${textarea.dataset.id}"]`
+            );
+
+          if (!contador) {
+            return;
+          }
+
+          const caracteresRestantes =
+            MAX_CARACTERES_MENSAJE -
+            textarea.value.length;
+
+          contador.textContent =
+            `${caracteresRestantes} ${
+              caracteresRestantes === 1
+                ? 'carácter'
+                : 'caracteres'
+            } restantes`;
+
+          contador.classList.toggle(
+            'limite-alcanzado',
+            caracteresRestantes === 0
+          );
+        }
+      );
+
+
+      textarea.addEventListener(
+        'keydown',
+        (event) => {
+
+          const id = textarea.dataset.id;
+
+          if (
+            event.key === 'Enter' &&
+            (event.ctrlKey || event.metaKey)
+          ) {
+            event.preventDefault();
+
+            guardarEdicion(id);
+          }
+
+          if (event.key === 'Escape') {
+
+            event.preventDefault();
+
+            editandoId = null;
+
+            renderizarPublicaciones();
+
+            agregarTodosLosEventos();
+          }
+        }
+      );
     });
-  });
 }
 
+
 function guardarEdicion(id) {
-  const publicaciones = obtenerPublicaciones();
-  const publicacion = publicaciones.find((item) => item.id === id);
 
-  if (!publicacion) return;
+  const publicaciones =
+    obtenerPublicaciones();
 
-  const textarea = document.querySelector(`.input-editar[data-id="${id}"]`);
-  const textoNuevo = textarea ? textarea.value.trim() : '';
+  const publicacion =
+    publicaciones.find(
+      (item) => item.id === id
+    );
 
-  if (!textoNuevo) {
-    // Validación: no se permite guardar un mensaje vacío.
-    const errorEl = document.getElementById(`error-editar-${id}`);
-    if (errorEl) {
-      errorEl.textContent = 'El mensaje no puede quedar vacío.';
-    }
-    textarea?.focus();
+  if (!publicacion) {
     return;
   }
 
-  // Solo se actualiza el contenido. Usuario, fecha, likes, dislikes
-  // y respuestas se conservan tal cual estaban.
-  publicacion.contenido = textoNuevo;
+  const textarea =
+    document.querySelector(
+      `.input-editar[data-id="${id}"]`
+    );
+
+  const textoNuevo =
+    textarea
+      ? textarea.value.trim()
+      : '';
+
+  const errorEl =
+    document.getElementById(
+      `error-editar-${id}`
+    );
+
+
+  // No permitir mensaje vacío.
+  if (!textoNuevo) {
+
+    if (errorEl) {
+      errorEl.textContent =
+        'El mensaje no puede quedar vacío.';
+    }
+
+    textarea?.focus();
+
+    return;
+  }
+
+
+  // H11: máximo 200 caracteres.
+  if (
+    textoNuevo.length >
+    MAX_CARACTERES_MENSAJE
+  ) {
+
+    if (errorEl) {
+      errorEl.textContent =
+        `El mensaje no puede superar los ${MAX_CARACTERES_MENSAJE} caracteres.`;
+    }
+
+    textarea?.focus();
+
+    return;
+  }
+
+
+  // Solo se actualiza el contenido.
+  // Usuario, fecha, likes, dislikes,
+  // respuestas y comentarios se conservan.
+  publicacion.contenido =
+    textoNuevo;
 
   guardarPublicaciones(publicaciones);
 
   editandoId = null;
+
   renderizarPublicaciones();
+
   agregarTodosLosEventos();
 }
 
-// --- H7: Comentar publicaciones ---
+
+// --- H7: Comentarios ---
 
 function agregarEventosComentar() {
-  document.querySelectorAll('.btn-enviar-comentario').forEach((boton) => {
-    boton.addEventListener('click', () => {
-      enviarComentario(boton.dataset.id);
-    });
-  });
 
-  // Permite enviar el comentario con Enter desde cualquiera de los dos campos.
-  document.querySelectorAll('.input-comentario-nombre, .input-comentario-texto').forEach((input) => {
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const contenedor = input.closest('.comentarios-contenedor');
-        const botonComentar = contenedor.querySelector('.btn-enviar-comentario');
-        botonComentar.click();
-      }
+  document
+    .querySelectorAll('.btn-enviar-comentario')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+        enviarComentario(
+          boton.dataset.id
+        );
+      });
     });
-  });
+
+
+  document
+    .querySelectorAll(
+      '.input-comentario-nombre, .input-comentario-texto'
+    )
+    .forEach((input) => {
+
+      input.addEventListener(
+        'keydown',
+        (event) => {
+
+          if (event.key === 'Enter') {
+
+            event.preventDefault();
+
+            const contenedor =
+              input.closest(
+                '.comentarios-contenedor'
+              );
+
+            const botonComentar =
+              contenedor.querySelector(
+                '.btn-enviar-comentario'
+              );
+
+            botonComentar.click();
+          }
+        }
+      );
+    });
 }
 
+
 function enviarComentario(id) {
-  const publicaciones = obtenerPublicaciones();
-  const publicacion = publicaciones.find((item) => item.id === id);
 
-  if (!publicacion) return;
+  const publicaciones =
+    obtenerPublicaciones();
 
-  const contenedor = document.getElementById(`comentarios-${id}`);
-  const inputNombre = contenedor.querySelector('.input-comentario-nombre');
-  const inputTexto = contenedor.querySelector('.input-comentario-texto');
-  const errorEl = document.getElementById(`error-comentario-${id}`);
+  const publicacion =
+    publicaciones.find(
+      (item) => item.id === id
+    );
 
-  const autor = inputNombre.value.trim();
-  const texto = inputTexto.value.trim();
-
-  // Validación: nombre y comentario no pueden quedar vacíos.
-  if (!autor || !texto) {
-    if (errorEl) {
-      errorEl.textContent = !autor
-        ? 'Escribí tu nombre para comentar.'
-        : 'El comentario no puede quedar vacío.';
-    }
-    (!autor ? inputNombre : inputTexto).focus();
+  if (!publicacion) {
     return;
   }
+
+  const contenedor =
+    document.getElementById(
+      `comentarios-${id}`
+    );
+
+  const inputNombre =
+    contenedor.querySelector(
+      '.input-comentario-nombre'
+    );
+
+  const inputTexto =
+    contenedor.querySelector(
+      '.input-comentario-texto'
+    );
+
+  const errorEl =
+    document.getElementById(
+      `error-comentario-${id}`
+    );
+
+  const autor =
+    inputNombre.value.trim();
+
+  const texto =
+    inputTexto.value.trim();
+
+
+  if (!autor || !texto) {
+
+    if (errorEl) {
+      errorEl.textContent =
+        !autor
+          ? 'Escribí tu nombre para comentar.'
+          : 'El comentario no puede quedar vacío.';
+    }
+
+    (!autor
+      ? inputNombre
+      : inputTexto
+    ).focus();
+
+    return;
+  }
+
 
   if (!Array.isArray(publicacion.comentarios)) {
     publicacion.comentarios = [];
   }
+
 
   publicacion.comentarios.push({
     id: generarIdComentario(),
@@ -554,100 +1079,227 @@ function enviarComentario(id) {
     fecha: new Date().toISOString()
   });
 
+
   guardarPublicaciones(publicaciones);
 
   renderizarPublicaciones();
+
   agregarTodosLosEventos();
 }
 
-// Centraliza el reenganche de listeners para no olvidar ninguno
-// después de cada renderizado.
+
+// --- Eventos generales ---
+
 function agregarTodosLosEventos() {
+
   agregarEventosLike();
+
   agregarEventosDislike();
+
   agregarEventosResponder();
+
   agregarEventosEliminar();
+
   agregarEventosEditar();
+
   agregarEventosCancelarEdicion();
+
   agregarEventosGuardarEdicion();
+
   agregarEventosComentar();
 }
 
+
+// --- Buscador ---
+
 function agregarEventosBuscador() {
-  const buscador = document.getElementById('buscador');
-  const botonBuscar = document.getElementById('btnBuscar');
+
+  const buscador =
+    document.getElementById('buscador');
+
+  const botonBuscar =
+    document.getElementById('btnBuscar');
 
   if (!buscador || !botonBuscar) {
     return;
   }
 
+
   const aplicarBusqueda = () => {
-    terminoBusqueda = buscador.value;
+
+    terminoBusqueda =
+      buscador.value;
+
     renderizarPublicaciones();
+
     agregarTodosLosEventos();
   };
 
-  buscador.addEventListener('input', aplicarBusqueda);
-  buscador.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      aplicarBusqueda();
+
+  buscador.addEventListener(
+    'input',
+    aplicarBusqueda
+  );
+
+
+  buscador.addEventListener(
+    'keydown',
+    (event) => {
+
+      if (event.key === 'Enter') {
+
+        event.preventDefault();
+
+        aplicarBusqueda();
+      }
     }
-  });
-  botonBuscar.addEventListener('click', aplicarBusqueda);
+  );
+
+
+  botonBuscar.addEventListener(
+    'click',
+    aplicarBusqueda
+  );
 }
 
-// --- H9: Ordenar publicaciones ---
+
+// --- H9: Orden ---
 
 function agregarEventosOrden() {
-  const selectorOrden = document.getElementById('ordenSelector');
+
+  const selectorOrden =
+    document.getElementById(
+      'ordenSelector'
+    );
 
   if (!selectorOrden) {
     return;
   }
 
-  ordenSeleccionado = selectorOrden.value || 'recientes';
+  ordenSeleccionado =
+    selectorOrden.value ||
+    'recientes';
 
-  selectorOrden.addEventListener('change', () => {
-    ordenSeleccionado = selectorOrden.value;
-    renderizarPublicaciones();
-    agregarTodosLosEventos();
-  });
+
+  selectorOrden.addEventListener(
+    'change',
+    () => {
+
+      ordenSeleccionado =
+        selectorOrden.value;
+
+      renderizarPublicaciones();
+
+      agregarTodosLosEventos();
+    }
+  );
 }
 
-form.addEventListener('submit', function (event) {
-  event.preventDefault();
 
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
+// --- H11: Crear publicación ---
+
+form.addEventListener(
+  'submit',
+  function (event) {
+
+    event.preventDefault();
+
+
+    if (!form.checkValidity()) {
+
+      form.reportValidity();
+
+      return;
+    }
+
+
+    const nombre =
+      nombreInput.value.trim();
+
+    const mensaje =
+      mensajeInput.value.trim();
+
+
+    // Validación de seguridad.
+    if (
+      mensaje.length >
+      MAX_CARACTERES_MENSAJE
+    ) {
+
+      alert(
+        `El mensaje no puede superar los ${MAX_CARACTERES_MENSAJE} caracteres.`
+      );
+
+      mensajeInput.focus();
+
+      return;
+    }
+
+
+    const nuevaPublicacion = {
+
+      id: generarIdPublicacion(),
+
+      usuario: nombre,
+
+      contenido: mensaje,
+
+      likes: 0,
+
+      dislikes: 0,
+
+      respuestas: [],
+
+      comentarios: [],
+
+      fecha: new Date().toISOString()
+    };
+
+
+    const publicaciones =
+      obtenerPublicaciones();
+
+    publicaciones.unshift(
+      nuevaPublicacion
+    );
+
+    guardarPublicaciones(
+      publicaciones
+    );
+
+
+    form.reset();
+
+    actualizarContadorCaracteres();
+
+    nombreInput.focus();
+
+    renderizarPublicaciones();
+
+    agregarTodosLosEventos();
   }
+);
 
-  const nombre = nombreInput.value.trim();
-  const mensaje = mensajeInput.value.trim();
 
-  const nuevaPublicacion = {
-    id: generarIdPublicacion(),
-    usuario: nombre,
-    contenido: mensaje,
-    likes: 0,
-    dislikes: 0,
-    respuestas: [],
-    comentarios: [],
-    fecha: new Date().toISOString()
-  };
+// Contador H11.
 
-  const publicaciones = obtenerPublicaciones();
-  publicaciones.unshift(nuevaPublicacion);
-  guardarPublicaciones(publicaciones);
+if (mensajeInput) {
 
-  form.reset();
-  nombreInput.focus();
-  renderizarPublicaciones();
-  agregarTodosLosEventos();
-});
+  mensajeInput.addEventListener(
+    'input',
+    actualizarContadorCaracteres
+  );
+}
+
+
+// Inicialización.
 
 renderizarPublicaciones();
+
 agregarTodosLosEventos();
+
 agregarEventosBuscador();
+
 agregarEventosOrden();
+
+actualizarContadorCaracteres();
