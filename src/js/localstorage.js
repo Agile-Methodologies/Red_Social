@@ -10,6 +10,10 @@ const resumenPublicacionesEl = document.getElementById('resumenPublicaciones');
 
 const resumenLikesEl = document.getElementById('resumenLikes');
 
+const resumenMeEncantaEl = document.getElementById('resumenMeEncanta');
+
+const resumenMeDivierteEl = document.getElementById('resumenMeDivierte');
+
 const resumenComentariosEl = document.getElementById('resumenComentarios');
 
 const contadorCaracteresEl = document.getElementById('contadorCaracteres');
@@ -20,6 +24,12 @@ const MAX_CARACTERES_MENSAJE = 200;
 // Guarda el id de la publicación que está actualmente en modo edición.
 // Al ser null, ninguna publicación se muestra en modo edición.
 let editandoId = null;
+
+// H12: Guarda la publicación y el comentario que están en edición.
+let editandoComentario = {
+  publicacionId: null,
+  comentarioId: null
+};
 
 let terminoBusqueda = '';
 
@@ -47,27 +57,57 @@ function generarIdComentario() {
 
 
 function normalizarComentarios(comentarios) {
-  return (Array.isArray(comentarios) ? comentarios : []).map((comentario) => ({
-    ...comentario,
-    id: comentario.id || generarIdComentario(),
-    autor: comentario.autor || 'Anónimo',
-    texto: comentario.texto || '',
-    fecha: comentario.fecha || new Date().toISOString()
-  }));
+  const idsUtilizados = new Set();
+
+  return (Array.isArray(comentarios) ? comentarios : []).map((comentario) => {
+    let id = comentario.id;
+
+    // H12: Cada comentario debe tener un id único.
+    if (!id || idsUtilizados.has(id)) {
+      id = generarIdComentario();
+
+      while (idsUtilizados.has(id)) {
+        id = generarIdComentario();
+      }
+    }
+
+    idsUtilizados.add(id);
+
+    return {
+      ...comentario,
+      id,
+      autor: comentario.autor || 'Anónimo',
+      texto: comentario.texto || '',
+      fecha: comentario.fecha || new Date().toISOString()
+    };
+  });
 }
 
 
 function normalizarPublicaciones(publicaciones) {
-  return (Array.isArray(publicaciones) ? publicaciones : []).map((publicacion) => ({
-    ...publicacion,
-    id: publicacion.id || generarIdPublicacion(),
-    likes: Number(publicacion.likes) || 0,
-    dislikes: Number(publicacion.dislikes) || 0,
-    respuestas: Array.isArray(publicacion.respuestas)
-      ? publicacion.respuestas
-      : [],
-    comentarios: normalizarComentarios(publicacion.comentarios)
-  }));
+  return (Array.isArray(publicaciones) ? publicaciones : []).map((publicacion) => {
+    const { likes, dislikes, ...rest } = publicacion;
+
+    return {
+      ...rest,
+      id: publicacion.id || generarIdPublicacion(),
+      reacciones: {
+        meGusta: Number(
+          publicacion.reacciones?.meGusta ?? likes ?? 0
+        ) || 0,
+        meEncanta: Number(
+          publicacion.reacciones?.meEncanta ?? 0
+        ) || 0,
+        meDivierte: Number(
+          publicacion.reacciones?.meDivierte ?? 0
+        ) || 0
+      },
+      respuestas: Array.isArray(publicacion.respuestas)
+        ? publicacion.respuestas
+        : [],
+      comentarios: normalizarComentarios(publicacion.comentarios)
+    };
+  });
 }
 
 
@@ -169,8 +209,8 @@ function ordenarPublicaciones(publicaciones, criterio) {
     case 'populares':
       return copia.sort((a, b) => {
         const diferenciaLikes =
-          (Number(b.likes) || 0) -
-          (Number(a.likes) || 0);
+          (Number(b.reacciones?.meGusta) || 0) -
+          (Number(a.reacciones?.meGusta) || 0);
 
         if (diferenciaLikes !== 0) {
           return diferenciaLikes;
@@ -343,24 +383,38 @@ function renderizarPublicaciones() {
         <div class="acciones-reaccion">
 
           <button
-            class="btn-like"
+            class="btn-reaccion btn-like"
             data-id="${publicacion.id}"
+            data-tipo="meGusta"
             type="button"
           >
-            Me gusta
+            👍 Me gusta
             <span class="contador">
-              ${Number(publicacion.likes || 0)}
+              ${Number(publicacion.reacciones?.meGusta || 0)}
             </span>
           </button>
 
           <button
-            class="btn-dislike"
+            class="btn-reaccion btn-encanta"
             data-id="${publicacion.id}"
+            data-tipo="meEncanta"
             type="button"
           >
-            No me gusta
+            😍 Me encanta
             <span class="contador">
-              ${Number(publicacion.dislikes || 0)}
+              ${Number(publicacion.reacciones?.meEncanta || 0)}
+            </span>
+          </button>
+
+          <button
+            class="btn-reaccion btn-divierte"
+            data-id="${publicacion.id}"
+            data-tipo="meDivierte"
+            type="button"
+          >
+            😂 Me divierte
+            <span class="contador">
+              ${Number(publicacion.reacciones?.meDivierte || 0)}
             </span>
           </button>
 
@@ -442,9 +496,77 @@ function renderizarPublicaciones() {
 
           ${
             comentarios
-              .map(
-                (comentario) => `
-                  <div class="comentario">
+              .map((comentario) => {
+
+                const comentarioEnEdicion =
+                  editandoComentario.publicacionId === publicacion.id &&
+                  editandoComentario.comentarioId === comentario.id;
+
+                if (comentarioEnEdicion) {
+                  return `
+                    <div
+                      class="comentario"
+                      data-comentario-id="${comentario.id}"
+                    >
+
+                      <div class="comentario-header">
+                        <strong>
+                          ${escaparTexto(comentario.autor)}
+                        </strong>
+
+                        <span>
+                          ${formatearFecha(comentario.fecha)}
+                        </span>
+                      </div>
+
+                      <div class="edicion-comentario-contenedor">
+
+                        <input
+                          type="text"
+                          class="input-editar-comentario"
+                          data-publicacion-id="${publicacion.id}"
+                          data-comentario-id="${comentario.id}"
+                          value="${escaparTexto(comentario.texto)}"
+                        >
+
+                        <p
+                          class="error-edicion-comentario"
+                          id="error-editar-comentario-${comentario.id}"
+                        ></p>
+
+                        <div class="botones-edicion-comentario">
+
+                          <button
+                            class="btn-guardar-comentario"
+                            data-publicacion-id="${publicacion.id}"
+                            data-comentario-id="${comentario.id}"
+                            type="button"
+                          >
+                            Guardar
+                          </button>
+
+                          <button
+                            class="btn-cancelar-comentario"
+                            data-publicacion-id="${publicacion.id}"
+                            data-comentario-id="${comentario.id}"
+                            type="button"
+                          >
+                            Cancelar
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  `;
+                }
+
+                return `
+                  <div
+                    class="comentario"
+                    data-comentario-id="${comentario.id}"
+                  >
 
                     <div class="comentario-header">
                       <strong>
@@ -460,9 +582,31 @@ function renderizarPublicaciones() {
                       ${escaparTexto(comentario.texto)}
                     </p>
 
+                    <div class="acciones-comentario">
+
+                      <button
+                        class="btn-editar-comentario"
+                        data-publicacion-id="${publicacion.id}"
+                        data-comentario-id="${comentario.id}"
+                        type="button"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        class="btn-eliminar-comentario"
+                        data-publicacion-id="${publicacion.id}"
+                        data-comentario-id="${comentario.id}"
+                        type="button"
+                      >
+                        Eliminar
+                      </button>
+
+                    </div>
+
                   </div>
-                `
-              )
+                `;
+              })
               .join('')
           }
 
@@ -492,6 +636,26 @@ function renderizarPublicaciones() {
         textarea.value.length;
     }
   }
+
+  // H12: Si hay un comentario en edición,
+  // enfocamos su campo de texto.
+  if (editandoComentario.publicacionId &&
+      editandoComentario.comentarioId) {
+
+    const input = document.querySelector(
+      `.input-editar-comentario[data-publicacion-id="${editandoComentario.publicacionId}"][data-comentario-id="${editandoComentario.comentarioId}"]`
+    );
+
+    if (input) {
+      input.focus();
+
+      input.selectionStart =
+        input.value.length;
+
+      input.selectionEnd =
+        input.value.length;
+    }
+  }
 }
 
 
@@ -504,7 +668,21 @@ function calcularResumen(publicaciones) {
   const totalLikes = publicaciones.reduce(
     (total, publicacion) =>
       total +
-      (Number(publicacion.likes) || 0),
+      (Number(publicacion.reacciones?.meGusta) || 0),
+    0
+  );
+
+  const totalMeEncanta = publicaciones.reduce(
+    (total, publicacion) =>
+      total +
+      (Number(publicacion.reacciones?.meEncanta) || 0),
+    0
+  );
+
+  const totalMeDivierte = publicaciones.reduce(
+    (total, publicacion) =>
+      total +
+      (Number(publicacion.reacciones?.meDivierte) || 0),
     0
   );
 
@@ -524,6 +702,8 @@ function calcularResumen(publicaciones) {
   return {
     totalPublicaciones,
     totalLikes,
+    totalMeEncanta,
+    totalMeDivierte,
     totalComentarios
   };
 }
@@ -533,6 +713,8 @@ function renderizarResumen(publicaciones) {
   if (
     !resumenPublicacionesEl ||
     !resumenLikesEl ||
+    !resumenMeEncantaEl ||
+    !resumenMeDivierteEl ||
     !resumenComentariosEl
   ) {
     return;
@@ -541,6 +723,8 @@ function renderizarResumen(publicaciones) {
   const {
     totalPublicaciones,
     totalLikes,
+    totalMeEncanta,
+    totalMeDivierte,
     totalComentarios
   } = calcularResumen(publicaciones);
 
@@ -550,21 +734,28 @@ function renderizarResumen(publicaciones) {
   resumenLikesEl.textContent =
     totalLikes;
 
+  resumenMeEncantaEl.textContent =
+    totalMeEncanta;
+
+  resumenMeDivierteEl.textContent =
+    totalMeDivierte;
+
   resumenComentariosEl.textContent =
     totalComentarios;
 }
 
 
-// --- Likes ---
+// --- Reacciones ---
 
-function agregarEventosLike() {
+function agregarEventosReaccion() {
   document
-    .querySelectorAll('.btn-like')
+    .querySelectorAll('.btn-reaccion')
     .forEach((boton) => {
 
       boton.addEventListener('click', () => {
 
         const id = boton.dataset.id;
+        const tipo = boton.dataset.tipo;
 
         const publicaciones =
           obtenerPublicaciones();
@@ -574,48 +765,20 @@ function agregarEventosLike() {
             (item) => item.id === id
           );
 
-        if (!publicacion) {
+        if (!publicacion || !tipo) {
           return;
         }
 
-        publicacion.likes =
-          (Number(publicacion.likes) || 0) + 1;
-
-        guardarPublicaciones(publicaciones);
-
-        renderizarPublicaciones();
-
-        agregarTodosLosEventos();
-      });
-    });
-}
-
-
-// --- Dislikes ---
-
-function agregarEventosDislike() {
-  document
-    .querySelectorAll('.btn-dislike')
-    .forEach((boton) => {
-
-      boton.addEventListener('click', () => {
-
-        const id = boton.dataset.id;
-
-        const publicaciones =
-          obtenerPublicaciones();
-
-        const publicacion =
-          publicaciones.find(
-            (item) => item.id === id
-          );
-
-        if (!publicacion) {
-          return;
+        if (!publicacion.reacciones) {
+          publicacion.reacciones = {
+            meGusta: 0,
+            meEncanta: 0,
+            meDivierte: 0
+          };
         }
 
-        publicacion.dislikes =
-          (Number(publicacion.dislikes) || 0) + 1;
+        publicacion.reacciones[tipo] =
+          (Number(publicacion.reacciones[tipo]) || 0) + 1;
 
         guardarPublicaciones(publicaciones);
 
@@ -750,6 +913,15 @@ function agregarEventosEliminar() {
 
         if (editandoId === id) {
           editandoId = null;
+        }
+
+        if (
+          editandoComentario.publicacionId === id
+        ) {
+          editandoComentario = {
+            publicacionId: null,
+            comentarioId: null
+          };
         }
 
         renderizarPublicaciones();
@@ -1088,13 +1260,306 @@ function enviarComentario(id) {
 }
 
 
+// --- H12: Editar comentarios ---
+
+function agregarEventosEditarComentario() {
+
+  document
+    .querySelectorAll('.btn-editar-comentario')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+
+        const publicacionId =
+          boton.dataset.publicacionId;
+
+        const comentarioId =
+          boton.dataset.comentarioId;
+
+        const publicaciones =
+          obtenerPublicaciones();
+
+        // Primero localizamos la publicación.
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === publicacionId
+          );
+
+        if (!publicacion) {
+          return;
+        }
+
+        if (!Array.isArray(publicacion.comentarios)) {
+          return;
+        }
+
+        // Después localizamos el comentario por su id.
+        const comentario =
+          publicacion.comentarios.find(
+            (item) => item.id === comentarioId
+          );
+
+        if (!comentario) {
+          return;
+        }
+
+        editandoComentario = {
+          publicacionId,
+          comentarioId
+        };
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
+    });
+}
+
+
+// --- H12: Cancelar edición de comentario ---
+
+function agregarEventosCancelarEdicionComentario() {
+
+  document
+    .querySelectorAll('.btn-cancelar-comentario')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+
+        editandoComentario = {
+          publicacionId: null,
+          comentarioId: null
+        };
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
+    });
+}
+
+
+// --- H12: Guardar edición de comentario ---
+
+function agregarEventosGuardarComentario() {
+
+  document
+    .querySelectorAll('.btn-guardar-comentario')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+
+        guardarEdicionComentario(
+          boton.dataset.publicacionId,
+          boton.dataset.comentarioId
+        );
+      });
+    });
+
+
+  document
+    .querySelectorAll('.input-editar-comentario')
+    .forEach((input) => {
+
+      input.addEventListener(
+        'keydown',
+        (event) => {
+
+          if (event.key === 'Enter') {
+
+            event.preventDefault();
+
+            guardarEdicionComentario(
+              input.dataset.publicacionId,
+              input.dataset.comentarioId
+            );
+          }
+
+          if (event.key === 'Escape') {
+
+            event.preventDefault();
+
+            editandoComentario = {
+              publicacionId: null,
+              comentarioId: null
+            };
+
+            renderizarPublicaciones();
+
+            agregarTodosLosEventos();
+          }
+        }
+      );
+    });
+}
+
+
+function guardarEdicionComentario(
+  publicacionId,
+  comentarioId
+) {
+
+  const publicaciones =
+    obtenerPublicaciones();
+
+  // Primero localizamos la publicación.
+  const publicacion =
+    publicaciones.find(
+      (item) => item.id === publicacionId
+    );
+
+  if (!publicacion) {
+    return;
+  }
+
+  if (!Array.isArray(publicacion.comentarios)) {
+    return;
+  }
+
+  // Después localizamos el comentario por su id.
+  const comentario =
+    publicacion.comentarios.find(
+      (item) => item.id === comentarioId
+    );
+
+  if (!comentario) {
+    return;
+  }
+
+  const input =
+    document.querySelector(
+      `.input-editar-comentario[data-publicacion-id="${publicacionId}"][data-comentario-id="${comentarioId}"]`
+    );
+
+  const errorEl =
+    document.getElementById(
+      `error-editar-comentario-${comentarioId}`
+    );
+
+  const textoNuevo =
+    input
+      ? input.value.trim()
+      : '';
+
+
+  // H12: No permitir comentarios vacíos
+  // ni comentarios que contengan solamente espacios.
+  if (!textoNuevo) {
+
+    if (errorEl) {
+      errorEl.textContent =
+        'El comentario no puede quedar vacío.';
+    }
+
+    input?.focus();
+
+    return;
+  }
+
+
+  // H12: Solo se modifica el texto.
+  // El id, autor y fecha permanecen intactos.
+  comentario.texto =
+    textoNuevo;
+
+  guardarPublicaciones(publicaciones);
+
+  editandoComentario = {
+    publicacionId: null,
+    comentarioId: null
+  };
+
+  renderizarPublicaciones();
+
+  agregarTodosLosEventos();
+}
+
+
+// --- H12: Eliminar comentario ---
+
+function agregarEventosEliminarComentario() {
+
+  document
+    .querySelectorAll('.btn-eliminar-comentario')
+    .forEach((boton) => {
+
+      boton.addEventListener('click', () => {
+
+        const publicacionId =
+          boton.dataset.publicacionId;
+
+        const comentarioId =
+          boton.dataset.comentarioId;
+
+        const publicaciones =
+          obtenerPublicaciones();
+
+        // Primero localizamos la publicación.
+        const publicacion =
+          publicaciones.find(
+            (item) => item.id === publicacionId
+          );
+
+        if (!publicacion) {
+          return;
+        }
+
+        if (!Array.isArray(publicacion.comentarios)) {
+          return;
+        }
+
+        // Después localizamos el comentario por su id.
+        const comentario =
+          publicacion.comentarios.find(
+            (item) => item.id === comentarioId
+          );
+
+        if (!comentario) {
+          return;
+        }
+
+        const confirmar =
+          window.confirm(
+            '¿Deseas eliminar este comentario?'
+          );
+
+        // H12: Si cancela, no hacemos ningún cambio.
+        if (!confirmar) {
+          return;
+        }
+
+        publicacion.comentarios =
+          publicacion.comentarios.filter(
+            (item) => item.id !== comentarioId
+          );
+
+        guardarPublicaciones(publicaciones);
+
+        if (
+          editandoComentario.publicacionId ===
+            publicacionId &&
+          editandoComentario.comentarioId ===
+            comentarioId
+        ) {
+          editandoComentario = {
+            publicacionId: null,
+            comentarioId: null
+          };
+        }
+
+        renderizarPublicaciones();
+
+        agregarTodosLosEventos();
+      });
+    });
+}
+
+
 // --- Eventos generales ---
 
 function agregarTodosLosEventos() {
 
-  agregarEventosLike();
-
-  agregarEventosDislike();
+  agregarEventosReaccion();
 
   agregarEventosResponder();
 
@@ -1107,6 +1572,15 @@ function agregarTodosLosEventos() {
   agregarEventosGuardarEdicion();
 
   agregarEventosComentar();
+
+  // H12: Eventos de edición y eliminación de comentarios.
+  agregarEventosEditarComentario();
+
+  agregarEventosCancelarEdicionComentario();
+
+  agregarEventosGuardarComentario();
+
+  agregarEventosEliminarComentario();
 }
 
 
@@ -1244,9 +1718,11 @@ form.addEventListener(
 
       contenido: mensaje,
 
-      likes: 0,
-
-      dislikes: 0,
+      reacciones: {
+        meGusta: 0,
+        meEncanta: 0,
+        meDivierte: 0
+      },
 
       respuestas: [],
 
@@ -1303,3 +1779,4 @@ agregarEventosBuscador();
 agregarEventosOrden();
 
 actualizarContadorCaracteres();
+

@@ -65,7 +65,7 @@ input[type="text"]:focus {
 button {
   margin-top: 8px;
   padding: 12px;
-  background: #032d53;
+  background: #7c3aed;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -118,14 +118,28 @@ button:disabled {
 .lista-publicaciones {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
 .publicacion {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 14px;
-  background: #f9fafb;
+  border: 2px solid #7c3aed;
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+
+  box-shadow:
+    0 3px 10px rgba(37, 99, 235, 0.12);
+
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.publicacion:hover {
+  box-shadow:
+    0 6px 18px rgba(37, 99, 235, 0.20);
+
+  transform: translateY(-2px);
 }
 
 .publicacion-header {
@@ -230,13 +244,23 @@ button:disabled {
   color: #0369a1;
 }
 
+.btn-encanta {
+  background: #ede9fe;
+  color: #d928b9;
+}
+
+.btn-divierte {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .btn-dislike {
   background: #fee2e2;
   color: #b91c1c;
 }
 
 .btn-editar {
-  background: #032d53;
+  background: #7c3aed;
   color: #fff;
 }
 
@@ -353,8 +377,8 @@ button:disabled {
 .comentario-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 30px;
 }
 
 .input-comentario-nombre,
@@ -383,7 +407,7 @@ button:disabled {
 .btn-enviar-comentario {
   background: #7c3aed;
   color: #fff;
-  margin-top: 0;
+  margin-top: 2px;
   align-self: flex-start;
   padding: 8px 16px;
   font-size: 14px;
@@ -418,8 +442,102 @@ button:disabled {
 }
 
 /* ============================================
+   H12 - Acciones de comentarios
+============================================ */
+
+.acciones-comentario {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.acciones-comentario button {
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  margin-top: 0;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-editar-comentario {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.btn-eliminar-comentario {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* ============================================
+   H12 - Edición de comentarios
+============================================ */
+
+.edicion-comentario-contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.input-editar-comentario {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-editar-comentario:focus {
+  border-color: #6a82fb;
+  box-shadow: 0 0 0 3px rgba(106, 130, 251, 0.2);
+}
+
+.error-edicion-comentario {
+  color: #b91c1c;
+  font-size: 0.85em;
+  min-height: 1em;
+  margin: 0;
+}
+
+.botones-edicion-comentario {
+  display: flex;
+  gap: 8px;
+}
+
+.botones-edicion-comentario button {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 7px;
+}
+
+.btn-guardar-comentario {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btn-cancelar-comentario {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* ============================================
    Resumen de actividad (H10)
-   ============================================ */
+============================================ */
+
 .resumen-panel {
   grid-column: 1 / -1;
 }
@@ -499,6 +617,12 @@ button:disabled {
   .acciones-reaccion,
   .acciones-gestion {
     justify-content: flex-start;
+  }
+
+  /* H12: botones de comentarios en móvil */
+  .acciones-comentario,
+  .botones-edicion-comentario {
+    flex-wrap: wrap;
   }
 }
 
