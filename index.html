@@ -8,6 +8,24 @@
 </head>
 <body>
   <main class="contenedor">
+    <section class="panel resumen-panel">
+      <h2>Resumen de actividad</h2>
+      <div class="resumen-grid">
+        <div class="resumen-item">
+          <span class="resumen-valor" id="resumenPublicaciones">0</span>
+          <span class="resumen-etiqueta">Publicaciones</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-valor" id="resumenLikes">0</span>
+          <span class="resumen-etiqueta">Me gusta</span>
+        </div>
+        <div class="resumen-item">
+          <span class="resumen-valor" id="resumenComentarios">0</span>
+          <span class="resumen-etiqueta">Comentarios</span>
+        </div>
+      </div>
+    </section>
+
     <section class="panel">
       <h1>Publicación</h1>
       <form id="formulario" novalidate>
@@ -23,6 +41,18 @@
 
     <section class="panel publicaciones-panel">
       <h2>Publicaciones</h2>
+      <div class="buscador-publicaciones">
+        <input type="text" id="buscador" placeholder="Buscar por autor o contenido">
+        <button type="button" id="btnBuscar" class="btn-buscar">Buscar</button>
+      </div>
+      <div class="orden-contenedor">
+        <label for="ordenSelector">Ordenar por:</label>
+        <select id="ordenSelector">
+          <option value="recientes" selected>Recientes</option>
+          <option value="antiguas">Antiguas</option>
+          <option value="populares">Más gustadas</option>
+        </select>
+      </div>
       <div id="listaPublicaciones" class="lista-publicaciones"></div>
     </section>
   </main>
