@@ -388,7 +388,7 @@ function renderizarPublicaciones() {
             data-tipo="meGusta"
             type="button"
           >
-            👍 Me gusta
+            Me gusta
             <span class="contador">
               ${Number(publicacion.reacciones?.meGusta || 0)}
             </span>
@@ -400,7 +400,7 @@ function renderizarPublicaciones() {
             data-tipo="meEncanta"
             type="button"
           >
-            😍 Me encanta
+            Me encanta
             <span class="contador">
               ${Number(publicacion.reacciones?.meEncanta || 0)}
             </span>
@@ -412,7 +412,7 @@ function renderizarPublicaciones() {
             data-tipo="meDivierte"
             type="button"
           >
-            😂 Me divierte
+            Me divierte
             <span class="contador">
               ${Number(publicacion.reacciones?.meDivierte || 0)}
             </span>
@@ -448,7 +448,7 @@ function renderizarPublicaciones() {
           (publicacion.respuestas || [])
             .map(
               (respuesta) =>
-                `<p>💬 ${escaparTexto(respuesta)}</p>`
+                `<p>${escaparTexto(respuesta)}</p>`
             )
             .join('')
         }
@@ -1779,4 +1779,3 @@ agregarEventosBuscador();
 agregarEventosOrden();
 
 actualizarContadorCaracteres();
-
