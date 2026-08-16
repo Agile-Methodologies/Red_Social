@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Red Social</title>
+
+  <link
+    rel="stylesheet"
+    href="./src/css/index.css"
+  >
+</head>
+
+
+<body>
+
+  <button
+    type="button"
+    id="temaToggle"
+    class="tema-toggle"
+    aria-label="Cambiar tema"
+    aria-pressed="false"
+  >
+    <span class="tema-toggle-thumb"></span>
+  </button>
+
+  <main class="contenedor">
+
+
+    <!-- H10: Resumen -->
+
+    <section class="panel resumen-panel">
+
+      <h2>Resumen de actividad</h2>
+
+      <div class="resumen-grid">
+
+        <div class="resumen-item">
+
+          <span
+            class="resumen-valor"
+            id="resumenPublicaciones"
+          >
+            0
+          </span>
+
+          <span class="resumen-etiqueta">
+            Publicaciones
+          </span>
+
+        </div>
+
+
+        <div class="resumen-item">
+
+          <span
+            class="resumen-valor"
+            id="resumenLikes"
+          >
+             0
+          </span>
+
+          <span class="resumen-etiqueta">
+            Me gusta
+          </span>
+
+        </div>
+
+
+        <div class="resumen-item">
+
+          <span
+            class="resumen-valor"
+            id="resumenMeEncanta"
+          >
+             0
+          </span>
+
+          <span class="resumen-etiqueta">
+            Me encanta
+          </span>
+
+        </div>
+
+
+        <div class="resumen-item">
+
+          <span
+            class="resumen-valor"
+            id="resumenMeDivierte"
+          >
+             0
+          </span>
+
+          <span class="resumen-etiqueta">
+            Me divierte
+          </span>
+
+        </div>
+
+
+        <div class="resumen-item">
+
+          <span
+            class="resumen-valor"
+            id="resumenComentarios"
+          >
+             0
+          </span>
+
+          <span class="resumen-etiqueta">
+            Comentarios
+          </span>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- Formulario de publicación -->
+
+    <section class="panel">
+
+      <h1>Publicación</h1>
+
+
+      <form
+        id="formulario"
+        novalidate
+      >
+
+        <label for="nombre">
+          Nombre:
+        </label>
+
+        <input
+          type="text"
+          id="nombre"
+          name="nombre"
+          required
+          placeholder="Tu nombre"
+        >
+
+
+        <label for="message">
+          Mensaje:
+        </label>
+
+
+        <!-- H11: límite de 200 caracteres -->
+
+        <div class="mensaje-input-contenedor">
+
+          <input
+            type="text"
+            id="message"
+            name="message"
+            required
+            maxlength="200"
+            placeholder="Escribe tu mensaje"
+          >
+
+          <small
+            id="contadorCaracteres"
+            class="contador-caracteres"
+          >
+            200 caracteres restantes
+          </small>
+
+        </div>
+
+
+        <button type="submit">
+          Publicar
+        </button>
+
+      </form>
+
+    </section>
+
+
+    <!-- Publicaciones -->
+
+    <section class="panel publicaciones-panel">
+
+      <h2>Publicaciones</h2>
+
+
+      <!-- Buscador -->
+
+      <div class="buscador-publicaciones">
+
+        <input
+          type="text"
+          id="buscador"
+          placeholder="Buscar por autor o contenido"
+        >
+
+        <button
+          type="button"
+          id="btnBuscar"
+          class="btn-buscar"
+        >
+          Buscar
+        </button>
+
+      </div>
+
+
+      <!-- H9: Orden -->
+
+      <div class="orden-contenedor">
+
+        <label for="ordenSelector">
+          Ordenar por:
+        </label>
+
+        <select id="ordenSelector">
+
+          <option
+            value="recientes"
+            selected
+          >
+            Recientes
+          </option>
+
+          <option value="antiguas">
+            Antiguas
+          </option>
+
+          <option value="populares">
+            Más gustadas
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div
+        id="listaPublicaciones"
+        class="lista-publicaciones"
+      ></div>
+
+    </section>
+
+  </main>
+
+
+  <script src="./src/js/localstorage.js"></script>
+
+</body>
+
+</html>
