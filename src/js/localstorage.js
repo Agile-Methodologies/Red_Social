@@ -21,6 +21,43 @@ const contadorCaracteresEl = document.getElementById('contadorCaracteres');
 const MAX_CARACTERES_MENSAJE = 200;
 
 
+// --- Tema oscuro/claro ---
+
+const temaToggle = document.getElementById('temaToggle');
+
+function aplicarTema(tema) {
+  const esClaro = tema === 'claro';
+
+  document.body.classList.toggle('tema-claro', esClaro);
+
+  localStorage.setItem('tema', tema);
+
+  if (temaToggle) {
+    temaToggle.setAttribute('aria-pressed', String(esClaro));
+  }
+}
+
+function inicializarTema() {
+  // El tema claro es el predeterminado si el usuario
+  // todavía no eligió ninguno.
+  const temaGuardado = localStorage.getItem('tema') || 'claro';
+
+  aplicarTema(temaGuardado);
+}
+
+if (temaToggle) {
+  temaToggle.addEventListener('click', () => {
+    const temaActual = document.body.classList.contains('tema-claro')
+      ? 'claro'
+      : 'oscuro';
+
+    aplicarTema(temaActual === 'claro' ? 'oscuro' : 'claro');
+  });
+}
+
+inicializarTema();
+
+
 // Guarda el id de la publicación que está actualmente en modo edición.
 // Al ser null, ninguna publicación se muestra en modo edición.
 let editandoId = null;
