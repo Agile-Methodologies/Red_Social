@@ -249,6 +249,25 @@ input[type="text"]::placeholder {
   color: var(--ink-faint);
 }
 
+select {
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--bg-panel);
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+select:focus {
+  border-color: var(--border-strong);
+  background: var(--card);
+  box-shadow: 0 0 0 4px rgba(128, 128, 128, 0.16);
+}
+
 button {
   margin-top: 8px;
   padding: 12px;
@@ -431,6 +450,59 @@ button:disabled {
   border-color: var(--border-strong);
   background: var(--card);
   box-shadow: 0 0 0 4px rgba(128, 128, 128, 0.16);
+}
+
+/* ============================================
+   H15: Etiquetas de publicación
+============================================ */
+
+.etiqueta-publicacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.etiqueta-publicacion::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.etiqueta-General {
+  color: var(--ink-soft);
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+.etiqueta-Estudio {
+  color: var(--like);
+  background: var(--like-bg);
+  border-color: var(--like-border);
+}
+
+.etiqueta-Evento {
+  color: var(--divierte);
+  background: var(--divierte-bg);
+  border-color: var(--divierte-border);
+}
+
+.etiqueta-Ayuda {
+  color: var(--encanta);
+  background: var(--encanta-bg);
+  border-color: var(--encanta-border);
 }
 
 /* ============================================
@@ -862,6 +934,7 @@ button:disabled {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .acciones-comentario button {
@@ -914,6 +987,24 @@ button:disabled {
   background-color: var(--accent-text);
   -webkit-mask: url('../img/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg') no-repeat center / contain;
   mask: url('../img/delete_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg') no-repeat center / contain;
+}
+
+/* --- H14: Responder comentario --- */
+
+.btn-responder-comentario {
+  background: var(--like-bg);
+  color: var(--like);
+  border: 1px solid var(--like-border);
+}
+
+.btn-responder-comentario::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  background-color: var(--like);
+  -webkit-mask: url('../img/comment_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg') no-repeat center / contain;
+  mask: url('../img/comment_24dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.svg') no-repeat center / contain;
 }
 
 /* ============================================
@@ -980,6 +1071,106 @@ button:disabled {
   background: var(--card);
   color: var(--ink);
   border: 1.5px solid var(--border-strong);
+}
+
+/* ============================================
+   H14: Formulario y lista de respuestas
+   de comentarios
+============================================ */
+
+.respuestas-comentario-contenedor {
+  margin-top: 10px;
+  margin-left: 14px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.respuesta-comentario-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.input-respuesta-comentario-nombre,
+.input-respuesta-comentario-texto {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--bg-panel);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-respuesta-comentario-nombre:focus,
+.input-respuesta-comentario-texto:focus {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 4px rgba(128, 128, 128, 0.16);
+}
+
+.error-respuesta-comentario {
+  color: var(--danger);
+  font-size: 0.82em;
+  min-height: 1em;
+  font-weight: 600;
+}
+
+.btn-enviar-respuesta-comentario {
+  background: var(--like);
+  color: #fff;
+  margin-top: 0;
+  align-self: flex-start;
+  padding: 7px 16px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+body.tema-claro .btn-enviar-respuesta-comentario {
+  color: #ffffff;
+}
+
+.lista-respuestas-comentario {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.respuesta-comentario {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.respuesta-comentario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  margin-bottom: 3px;
+  font-weight: 600;
+}
+
+.respuesta-comentario-header strong {
+  color: var(--ink);
+}
+
+.respuesta-comentario p {
+  margin: 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+  font-size: 0.88rem;
 }
 
 /* ============================================
