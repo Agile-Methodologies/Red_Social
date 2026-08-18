@@ -21,9 +21,12 @@ const resumenComentariosEl = document.getElementById('resumenComentarios');
 const contadorCaracteresEl = document.getElementById('contadorCaracteres');
 
 const MAX_CARACTERES_MENSAJE = 200;
+const PUBLICACIONES_POR_PAGINA = 5;
 
 // H15: etiquetas válidas para una publicación.
 const ETIQUETAS_VALIDAS = ['General', 'Estudio', 'Evento', 'Ayuda'];
+
+let paginaActual = 1;
 
 
 // --- Tema oscuro/claro ---
@@ -78,6 +81,101 @@ let editandoComentario = {
 let comentariosConFormularioRespuesta = new Set();
 
 let terminoBusqueda = '';
+let mostrarSoloFavoritas = false;
+
+const BORRADOR_KEY = 'borrador-publicacion';
+const borradorInfo = document.getElementById('borradorInfo');
+const btnDescartarBorrador = document.getElementById('btnDescartarBorrador');
+
+function mostrarEstadoBorrador(visible) {
+  if (borradorInfo) {
+    borradorInfo.hidden = !visible;
+  }
+}
+
+function obtenerBorradorGuardado() {
+  try {
+    const datos = localStorage.getItem(BORRADOR_KEY);
+
+    if (!datos) {
+      return null;
+    }
+
+    return JSON.parse(datos);
+  } catch (error) {
+    console.error('No se pudo leer el borrador:', error);
+    return null;
+  }
+}
+
+function guardarBorradorFormulario() {
+  if (!nombreInput || !mensajeInput) {
+    return;
+  }
+
+  const nombre = nombreInput.value.trim();
+  const mensaje = mensajeInput.value.trim();
+  const etiqueta = etiquetaInput ? etiquetaInput.value : 'General';
+
+  if (!nombre && !mensaje) {
+    localStorage.removeItem(BORRADOR_KEY);
+    mostrarEstadoBorrador(false);
+    return;
+  }
+
+  const borrador = { nombre, mensaje, etiqueta };
+  localStorage.setItem(BORRADOR_KEY, JSON.stringify(borrador));
+  mostrarEstadoBorrador(true);
+}
+
+function descartarBorradorFormulario() {
+  localStorage.removeItem(BORRADOR_KEY);
+
+  if (nombreInput) {
+    nombreInput.value = '';
+  }
+
+  if (mensajeInput) {
+    mensajeInput.value = '';
+  }
+
+  if (etiquetaInput) {
+    etiquetaInput.value = 'General';
+  }
+
+  mostrarEstadoBorrador(false);
+
+  if (typeof actualizarContadorCaracteres === 'function') {
+    actualizarContadorCaracteres();
+  }
+}
+
+function restaurarBorradorFormulario() {
+  const borrador = obtenerBorradorGuardado();
+
+  if (!borrador || !nombreInput || !mensajeInput) {
+    return;
+  }
+
+  nombreInput.value = borrador.nombre || '';
+  mensajeInput.value = borrador.mensaje || '';
+
+  if (etiquetaInput && ETIQUETAS_VALIDAS.includes(borrador.etiqueta)) {
+    etiquetaInput.value = borrador.etiqueta;
+  }
+
+  mostrarEstadoBorrador(Boolean((borrador.nombre || '').trim() || (borrador.mensaje || '').trim()));
+
+  if (typeof actualizarContadorCaracteres === 'function') {
+    actualizarContadorCaracteres();
+  }
+}
+
+function inicializarBorradorFormulario() {
+  restaurarBorradorFormulario();
+}
+
+const eliminarBorrador = descartarBorradorFormulario;
 
 
 // Criterio de orden actualmente seleccionado. Solo vive en memoria.
@@ -174,32 +272,66 @@ function normalizarComentarios(comentarios) {
 }
 
 
+function normalizarReportes(reportes) {
+  const reportesValidos = Array.isArray(reportes) ? reportes : [];
+  const reportesUnicos = new Map();
+
+  reportesValidos.forEach((reporte) => {
+    const motivo = String(reporte?.motivo || 'Otro').trim();
+
+    if (!motivo) {
+      return;
+    }
+
+    const clave = motivo.toLowerCase();
+
+    if (!reportesUnicos.has(clave)) {
+      reportesUnicos.set(clave, {
+        motivo,
+        fecha: reporte?.fecha || new Date().toISOString()
+      });
+    }
+  });
+
+  return [...reportesUnicos.values()];
+}
+
 function normalizarPublicaciones(publicaciones) {
   return (Array.isArray(publicaciones) ? publicaciones : []).map((publicacion) => {
-    const { likes, dislikes, ...rest } = publicacion;
+    const datosPublicacion =
+      publicacion && typeof publicacion === 'object'
+        ? publicacion
+        : {};
+
+    const { likes, dislikes, ...rest } = datosPublicacion;
 
     return {
       ...rest,
-      id: publicacion.id || generarIdPublicacion(),
+      id: String(datosPublicacion.id || generarIdPublicacion()),
+      usuario: String(datosPublicacion.usuario || ''),
+      contenido: String(datosPublicacion.contenido || ''),
       // H15: publicaciones antiguas sin etiqueta se muestran como "General".
-      etiqueta: ETIQUETAS_VALIDAS.includes(publicacion.etiqueta)
-        ? publicacion.etiqueta
+      etiqueta: ETIQUETAS_VALIDAS.includes(datosPublicacion.etiqueta)
+        ? datosPublicacion.etiqueta
         : 'General',
       reacciones: {
         meGusta: Number(
-          publicacion.reacciones?.meGusta ?? likes ?? 0
+          datosPublicacion.reacciones?.meGusta ?? likes ?? 0
         ) || 0,
         meEncanta: Number(
-          publicacion.reacciones?.meEncanta ?? 0
+          datosPublicacion.reacciones?.meEncanta ?? 0
         ) || 0,
         meDivierte: Number(
-          publicacion.reacciones?.meDivierte ?? 0
+          datosPublicacion.reacciones?.meDivierte ?? 0
         ) || 0
       },
-      respuestas: Array.isArray(publicacion.respuestas)
-        ? publicacion.respuestas
+      respuestas: Array.isArray(datosPublicacion.respuestas)
+        ? datosPublicacion.respuestas
         : [],
-      comentarios: normalizarComentarios(publicacion.comentarios)
+      comentarios: normalizarComentarios(datosPublicacion.comentarios),
+      reportes: normalizarReportes(datosPublicacion.reportes),
+      favorita: Boolean(datosPublicacion.favorita),
+      fecha: datosPublicacion.fecha || new Date().toISOString()
     };
   });
 }
@@ -302,6 +434,67 @@ function filtrarPorEtiqueta(publicaciones, etiqueta) {
   );
 }
 
+function filtrarFavoritas(publicaciones) {
+  if (!mostrarSoloFavoritas) {
+    return publicaciones;
+  }
+
+  return publicaciones.filter(
+    (publicacion) => Boolean(publicacion.favorita)
+  );
+}
+
+function obtenerPublicacionesOrdenadas() {
+  const publicaciones = obtenerPublicaciones();
+
+  const publicacionesPorEtiqueta = filtrarPorEtiqueta(
+    publicaciones,
+    etiquetaFiltroSeleccionada
+  );
+
+  const publicacionesFiltradas = filtrarPublicaciones(
+    publicacionesPorEtiqueta,
+    terminoBusqueda
+  );
+
+  const publicacionesFavoritas = filtrarFavoritas(
+    publicacionesFiltradas
+  );
+
+  return ordenarPublicaciones(
+    publicacionesFavoritas,
+    ordenSeleccionado
+  );
+}
+
+function actualizarIndicadorPaginacion(totalPublicaciones) {
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(totalPublicaciones / PUBLICACIONES_POR_PAGINA)
+  );
+
+  paginaActual = Math.min(
+    Math.max(1, paginaActual),
+    totalPaginas
+  );
+
+  const botonAnterior = document.getElementById('btnPaginaAnterior');
+  const botonSiguiente = document.getElementById('btnPaginaSiguiente');
+  const indicadorPagina = document.getElementById('indicadorPagina');
+
+  if (indicadorPagina) {
+    indicadorPagina.textContent = `Página ${paginaActual} de ${totalPaginas}`;
+  }
+
+  if (botonAnterior) {
+    botonAnterior.disabled = paginaActual <= 1;
+  }
+
+  if (botonSiguiente) {
+    botonSiguiente.disabled = paginaActual >= totalPaginas;
+  }
+}
+
 
 // --- H9: Ordenar publicaciones ---
 
@@ -335,7 +528,6 @@ function ordenarPublicaciones(publicaciones, criterio) {
   }
 }
 
-
 // --- H11: Contador de caracteres ---
 
 function actualizarContadorCaracteres() {
@@ -362,6 +554,38 @@ function actualizarContadorCaracteres() {
 }
 
 
+function agregarEventosPaginacion() {
+  const btnAnterior = document.getElementById('btnPaginaAnterior');
+  const btnSiguiente = document.getElementById('btnPaginaSiguiente');
+
+  if (btnAnterior) {
+    btnAnterior.addEventListener('click', () => {
+      if (paginaActual > 1) {
+        paginaActual--;
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      }
+    });
+  }
+
+  if (btnSiguiente) {
+    btnSiguiente.addEventListener('click', () => {
+      const totalPaginas = Math.max(
+        1,
+        Math.ceil(
+          obtenerPublicacionesOrdenadas().length / PUBLICACIONES_POR_PAGINA
+        )
+      );
+
+      if (paginaActual < totalPaginas) {
+        paginaActual++;
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      }
+    });
+  }
+}
+
 // --- Renderizado ---
 
 function renderizarPublicaciones() {
@@ -369,37 +593,40 @@ function renderizarPublicaciones() {
 
   renderizarResumen(publicaciones);
 
-  // H15: primero se filtra por etiqueta, después por búsqueda.
-  // El arreglo original nunca se modifica, solo lo que se muestra.
-  const publicacionesPorEtiqueta =
-    filtrarPorEtiqueta(
-      publicaciones,
-      etiquetaFiltroSeleccionada
-    );
+  const publicacionesOrdenadas = obtenerPublicacionesOrdenadas();
 
-  const publicacionesFiltradas =
-    filtrarPublicaciones(
-      publicacionesPorEtiqueta,
-      terminoBusqueda
-    );
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(publicacionesOrdenadas.length / PUBLICACIONES_POR_PAGINA)
+  );
 
-  const publicacionesMostradas =
-    ordenarPublicaciones(
-      publicacionesFiltradas,
-      ordenSeleccionado
-    );
+  if (paginaActual > totalPaginas) {
+    paginaActual = totalPaginas;
+  }
+
+  actualizarIndicadorPaginacion(publicacionesOrdenadas.length);
 
   if (!publicaciones.length) {
+    paginaActual = 1;
+    actualizarIndicadorPaginacion(0);
     listaPublicaciones.innerHTML =
       '<p class="vacio">Aún no hay publicaciones.</p>';
+    renderizarModeracion();
     return;
   }
 
-  if (!publicacionesMostradas.length) {
+  if (!publicacionesOrdenadas.length) {
+    paginaActual = 1;
+    actualizarIndicadorPaginacion(0);
     listaPublicaciones.innerHTML =
       '<p class="vacio">No se encontraron publicaciones que coincidan con la búsqueda.</p>';
+    renderizarModeracion();
     return;
   }
+
+  const inicio = (paginaActual - 1) * PUBLICACIONES_POR_PAGINA;
+  const fin = inicio + PUBLICACIONES_POR_PAGINA;
+  const publicacionesMostradas = publicacionesOrdenadas.slice(inicio, fin);
 
   listaPublicaciones.innerHTML = '';
 
@@ -506,6 +733,12 @@ function renderizarPublicaciones() {
 
       ${bloqueContenido}
 
+      ${
+        Array.isArray(publicacion.reportes) && publicacion.reportes.length
+          ? `<div class="estado-reportado">Reportada</div>`
+          : ''
+      }
+
       <div class="acciones-publicacion">
 
         <div class="acciones-reaccion">
@@ -551,6 +784,17 @@ function renderizarPublicaciones() {
         <div class="acciones-gestion">
 
           <button
+            class="btn-favorito ${publicacion.favorita ? 'favorita' : ''}"
+            data-id="${publicacion.id}"
+            type="button"
+            aria-label="${publicacion.favorita ? 'Quitar de favoritos' : 'Marcar como favorito'}"
+            aria-pressed="${publicacion.favorita ? 'true' : 'false'}"
+            title="${publicacion.favorita ? 'Quitar de favoritos' : 'Marcar como favorito'}"
+          >
+            ★
+          </button>
+
+          <button
             class="btn-editar"
             data-id="${publicacion.id}"
             type="button"
@@ -569,6 +813,30 @@ function renderizarPublicaciones() {
 
         </div>
 
+      </div>
+
+      <div class="reporte-publicacion">
+        <label for="motivo-reporte-${publicacion.id}">
+          Reportar
+        </label>
+
+        <select
+          id="motivo-reporte-${publicacion.id}"
+          class="select-reporte-motivo"
+          data-id="${publicacion.id}"
+        >
+          <option value="Spam">Spam</option>
+          <option value="Ofensivo">Ofensivo</option>
+          <option value="Otro">Otro</option>
+        </select>
+
+        <button
+          class="btn-reportar-publicacion"
+          data-id="${publicacion.id}"
+          type="button"
+        >
+          Reportar
+        </button>
       </div>
 
       <div class="lista-respuestas">
@@ -889,6 +1157,78 @@ function renderizarPublicaciones() {
         input.value.length;
     }
   }
+
+  renderizarModeracion();
+}
+
+function renderizarModeracion() {
+  const listaModeracion = document.getElementById('listaModeracion');
+
+  if (!listaModeracion) {
+    return;
+  }
+
+  const publicacionesReportadas = obtenerPublicaciones().filter(
+    (publicacion) => Array.isArray(publicacion.reportes) && publicacion.reportes.length > 0
+  );
+
+  if (!publicacionesReportadas.length) {
+    listaModeracion.innerHTML =
+      '<p class="vacio">No hay publicaciones reportadas.</p>';
+    return;
+  }
+
+  listaModeracion.innerHTML = publicacionesReportadas
+    .map((publicacion) => {
+      const reportes = Array.isArray(publicacion.reportes)
+        ? publicacion.reportes
+        : [];
+
+      return `
+        <article class="moderacion-item">
+          <h3>${escaparTexto(publicacion.usuario || 'Anónimo')}</h3>
+          <p>${escaparTexto(publicacion.contenido || '')}</p>
+
+          <div class="moderacion-reportes">
+            ${reportes
+              .map(
+                (reporte) => `
+                  <span class="moderacion-reporte">
+                    ${escaparTexto(reporte.motivo || 'Otro')}
+                  </span>
+                `
+              )
+              .join('')}
+          </div>
+
+          <div class="acciones-moderacion">
+            ${reportes
+              .map(
+                (reporte) => `
+                  <button
+                    type="button"
+                    class="btn-descartar-reporte"
+                    data-publicacion-id="${publicacion.id}"
+                    data-motivo="${escaparTexto(reporte.motivo || 'Otro')}"
+                  >
+                    Descartar ${escaparTexto(reporte.motivo || 'Otro')}
+                  </button>
+                `
+              )
+              .join('')}
+
+            <button
+              type="button"
+              class="btn-eliminar-moderacion"
+              data-publicacion-id="${publicacion.id}"
+            >
+              Eliminar publicación
+            </button>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
 }
 
 
@@ -1024,6 +1364,62 @@ function agregarEventosReaccion() {
 
 
 // --- Respuestas ---
+
+function agregarEventosReportar() {
+  document
+    .querySelectorAll('.btn-reportar-publicacion')
+    .forEach((boton) => {
+      boton.addEventListener('click', () => {
+        const publicacionId = boton.dataset.id;
+        const selectMotivo = document.getElementById(
+          `motivo-reporte-${publicacionId}`
+        );
+        const motivo = selectMotivo ? selectMotivo.value : 'Otro';
+
+        const publicaciones = obtenerPublicaciones();
+        const publicacion = publicaciones.find(
+          (item) => item.id === publicacionId
+        );
+
+        if (!publicacion) {
+          return;
+        }
+
+        if (!Array.isArray(publicacion.reportes)) {
+          publicacion.reportes = [];
+        }
+
+        const yaReportada = publicacion.reportes.some(
+          (reporte) =>
+            String(reporte?.motivo || '').toLowerCase() ===
+            motivo.toLowerCase()
+        );
+
+        if (yaReportada) {
+          alert('Esta publicación ya tiene ese motivo de reporte.');
+          return;
+        }
+
+        const confirmar = window.confirm(
+          `¿Deseas reportar esta publicación por ${motivo}?`
+        );
+
+        if (!confirmar) {
+          return;
+        }
+
+        publicacion.reportes.push({
+          motivo,
+          fecha: new Date().toISOString()
+        });
+
+        guardarPublicaciones(publicaciones);
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      });
+    });
+}
+
 
 function agregarEventosResponder() {
 
@@ -2003,9 +2399,183 @@ function enviarRespuestaComentario(
 
 // --- Eventos generales ---
 
+function agregarEventosExportar() {
+  const botonExportar = document.getElementById('btnExportar');
+  const inputImportar = document.getElementById('inputImportar');
+
+  if (botonExportar) {
+    botonExportar.addEventListener('click', () => {
+      const publicaciones = obtenerPublicaciones();
+      const contenido = JSON.stringify(publicaciones, null, 2);
+      const blob = new Blob([contenido], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+
+      enlace.href = url;
+      enlace.download = 'respaldo-red-social.json';
+      enlace.click();
+
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  if (inputImportar) {
+    inputImportar.addEventListener('change', async (event) => {
+      const [archivo] = event.target.files || [];
+
+      if (!archivo) {
+        return;
+      }
+
+      try {
+        const texto = await archivo.text();
+        const datos = JSON.parse(texto);
+
+        const publicacionesValidadas = validarRespaldoImportado(datos);
+
+        if (!publicacionesValidadas) {
+          alert('El archivo de respaldo no tiene una estructura válida.');
+          inputImportar.value = '';
+          return;
+        }
+
+        const confirmar = window.confirm(
+          'Se reemplazarán las publicaciones actuales. ¿Deseás continuar?'
+        );
+
+        if (!confirmar) {
+          inputImportar.value = '';
+          return;
+        }
+
+        guardarPublicaciones(publicacionesValidadas);
+        paginaActual = 1;
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      } catch (error) {
+        alert('El archivo seleccionado no es un JSON válido.');
+      } finally {
+        inputImportar.value = '';
+      }
+    });
+  }
+
+  const botonImportar = document.getElementById('btnImportar');
+  const inputArchivo = document.getElementById('inputImportar');
+
+  if (botonImportar && inputArchivo) {
+    botonImportar.addEventListener('click', () => {
+      inputArchivo.click();
+    });
+  }
+}
+
+function validarRespaldoImportado(datos) {
+  if (!Array.isArray(datos)) {
+    return null;
+  }
+
+  const publicacionesNormalizadas = normalizarPublicaciones(datos);
+
+  const validas = publicacionesNormalizadas.every((publicacion) => {
+    if (!publicacion || typeof publicacion !== 'object') {
+      return false;
+    }
+
+    if (typeof publicacion.id !== 'string' || !publicacion.id.trim()) {
+      return false;
+    }
+
+    if (typeof publicacion.usuario !== 'string') {
+      return false;
+    }
+
+    if (typeof publicacion.contenido !== 'string') {
+      return false;
+    }
+
+    if (!ETIQUETAS_VALIDAS.includes(publicacion.etiqueta)) {
+      return false;
+    }
+
+    if (!publicacion.reacciones || typeof publicacion.reacciones !== 'object') {
+      return false;
+    }
+
+    return true;
+  });
+
+  return validas && publicacionesNormalizadas.length >= 0
+    ? publicacionesNormalizadas
+    : null;
+}
+
+function agregarEventosModeracion() {
+  document
+    .querySelectorAll('.btn-descartar-reporte')
+    .forEach((boton) => {
+      boton.addEventListener('click', () => {
+        const publicacionId = boton.dataset.publicacionId;
+        const motivo = boton.dataset.motivo;
+        const publicaciones = obtenerPublicaciones();
+        const publicacion = publicaciones.find(
+          (item) => item.id === publicacionId
+        );
+
+        if (!publicacion || !Array.isArray(publicacion.reportes)) {
+          return;
+        }
+
+        publicacion.reportes = publicacion.reportes.filter(
+          (reporte) => String(reporte?.motivo || '').toLowerCase() !== String(motivo || '').toLowerCase()
+        );
+
+        guardarPublicaciones(publicaciones);
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      });
+    });
+
+  document
+    .querySelectorAll('.btn-eliminar-moderacion')
+    .forEach((boton) => {
+      boton.addEventListener('click', () => {
+        const publicacionId = boton.dataset.publicacionId;
+        const publicaciones = obtenerPublicaciones();
+        const publicacion = publicaciones.find(
+          (item) => item.id === publicacionId
+        );
+
+        if (!publicacion) {
+          return;
+        }
+
+        const confirmar = window.confirm(
+          `¿Deseas eliminar esta publicación reportada de ${publicacion.usuario || 'Anónimo'}?`
+        );
+
+        if (!confirmar) {
+          return;
+        }
+
+        const actualizadas = publicaciones.filter(
+          (item) => item.id !== publicacionId
+        );
+
+        guardarPublicaciones(actualizadas);
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      });
+    });
+}
+
 function agregarTodosLosEventos() {
 
   agregarEventosReaccion();
+
+  agregarEventosFavoritos();
+
+  agregarEventosReportar();
 
   agregarEventosResponder();
 
@@ -2032,6 +2602,12 @@ function agregarTodosLosEventos() {
   agregarEventosMostrarRespuestaComentario();
 
   agregarEventosEnviarRespuestaComentario();
+
+  agregarEventosPaginacion();
+
+  agregarEventosExportar();
+
+  agregarEventosModeracion();
 }
 
 
@@ -2121,6 +2697,29 @@ function agregarEventosOrden() {
 }
 
 
+function agregarEventosFavoritos() {
+  document
+    .querySelectorAll('.btn-favorito')
+    .forEach((boton) => {
+      boton.addEventListener('click', () => {
+        const id = boton.dataset.id;
+        const publicaciones = obtenerPublicaciones();
+        const publicacion = publicaciones.find((item) => item.id === id);
+
+        if (!publicacion) {
+          return;
+        }
+
+        publicacion.favorita = !Boolean(publicacion.favorita);
+
+        guardarPublicaciones(publicaciones);
+        renderizarPublicaciones();
+        agregarTodosLosEventos();
+      });
+    });
+}
+
+
 // --- H15: Filtro por etiqueta ---
 
 function agregarEventosFiltroEtiqueta() {
@@ -2153,6 +2752,23 @@ function agregarEventosFiltroEtiqueta() {
       agregarTodosLosEventos();
     }
   );
+}
+
+function agregarEventosFiltroFavoritos() {
+  const selectorFavoritos = document.getElementById('filtroFavoritos');
+
+  if (!selectorFavoritos) {
+    return;
+  }
+
+  selectorFavoritos.value = mostrarSoloFavoritas ? 'favoritas' : 'todas';
+
+  selectorFavoritos.addEventListener('change', () => {
+    mostrarSoloFavoritas = selectorFavoritos.value === 'favoritas';
+    paginaActual = 1;
+    renderizarPublicaciones();
+    agregarTodosLosEventos();
+  });
 }
 
 
@@ -2211,6 +2827,7 @@ form.addEventListener(
       contenido: mensaje,
 
       etiqueta: etiquetaSeleccionada,
+      favorita: false,
 
       reacciones: {
         meGusta: 0,
@@ -2240,6 +2857,9 @@ form.addEventListener(
 
     form.reset();
 
+    // H17: al publicar con éxito, el borrador ya no tiene sentido.
+    descartarBorradorFormulario();
+
     actualizarContadorCaracteres();
 
     nombreInput.focus();
@@ -2253,14 +2873,26 @@ form.addEventListener(
 
 // Contador H11.
 
-if (mensajeInput) {
-
-  mensajeInput.addEventListener(
-    'input',
-    actualizarContadorCaracteres
-  );
+if (nombreInput) {
+  nombreInput.addEventListener('input', guardarBorradorFormulario);
 }
 
+if (mensajeInput) {
+  mensajeInput.addEventListener('input', () => {
+    guardarBorradorFormulario();
+    actualizarContadorCaracteres();
+  });
+}
+
+if (etiquetaInput) {
+  etiquetaInput.addEventListener('change', guardarBorradorFormulario);
+}
+
+if (btnDescartarBorrador) {
+  btnDescartarBorrador.addEventListener('click', descartarBorradorFormulario);
+}
+
+inicializarBorradorFormulario();
 
 // Inicialización.
 
@@ -2273,5 +2905,7 @@ agregarEventosBuscador();
 agregarEventosOrden();
 
 agregarEventosFiltroEtiqueta();
+
+agregarEventosFiltroFavoritos();
 
 actualizarContadorCaracteres();

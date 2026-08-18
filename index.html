@@ -192,6 +192,29 @@
         </select>
 
 
+        <!-- H17: Borrador automático -->
+
+        <div
+          class="borrador-info"
+          id="borradorInfo"
+          hidden
+        >
+
+          <span>
+            Tenés un borrador sin publicar.
+          </span>
+
+          <button
+            type="button"
+            id="btnDescartarBorrador"
+            class="btn-descartar-borrador"
+          >
+            Descartar borrador
+          </button>
+
+        </div>
+
+
         <button type="submit">
           Publicar
         </button>
@@ -206,6 +229,33 @@
     <section class="panel publicaciones-panel">
 
       <h2>Publicaciones</h2>
+
+      <div class="acciones-archivo">
+
+        <button
+          type="button"
+          id="btnExportar"
+          class="btn-archivo"
+        >
+          Exportar respaldo
+        </button>
+
+        <button
+          type="button"
+          id="btnImportar"
+          class="btn-archivo btn-archivo-secundario"
+        >
+          Importar respaldo
+        </button>
+
+        <input
+          type="file"
+          id="inputImportar"
+          accept="application/json"
+          hidden
+        >
+
+      </div>
 
 
       <!-- Buscador -->
@@ -279,10 +329,58 @@
 
       </div>
 
+      <div class="orden-contenedor filtro-favoritos-contenedor">
+
+        <label for="filtroFavoritos">
+          Ver:
+        </label>
+
+        <select id="filtroFavoritos">
+          <option value="todas">Todas</option>
+          <option value="favoritas">Favoritas</option>
+        </select>
+
+      </div>
+
+
+      <div class="paginacion" id="paginacionPublicaciones">
+
+        <button
+          type="button"
+          id="btnPaginaAnterior"
+          class="btn-pagina"
+        >
+          Anterior
+        </button>
+
+        <span id="indicadorPagina" class="indicador-pagina">
+          Página 1 de 1
+        </span>
+
+        <button
+          type="button"
+          id="btnPaginaSiguiente"
+          class="btn-pagina"
+        >
+          Siguiente
+        </button>
+
+      </div>
 
       <div
         id="listaPublicaciones"
         class="lista-publicaciones"
+      ></div>
+
+    </section>
+
+    <section class="panel moderacion-panel">
+
+      <h2>Moderación</h2>
+
+      <div
+        id="listaModeracion"
+        class="lista-moderacion"
       ></div>
 
     </section>
